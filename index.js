@@ -1,233 +1,83 @@
-// ------------------------------
-// GET HTML ELEMENTS
-// ------------------------------
+// 
+const form = document.getElementById("search-form");
+const input = document.getElementById("search-input");
+const results = document.getElementById("results");
 
-const searchInput = document.getElementById("searchInput");
-const searchButton = document.getElementById("searchButton");
-const resultsContainer = document.getElementById("results");
-const status = document.getElementById("status");
+form.addEventListener("submit", async (event) => {
+    // Stop the page from refreshing
+    event.preventDefault();
 
+    // Get the text entered by the user
+    const query = input.value.trim();
 
-// ------------------------------
-// SEARCH FUNCTION
-// ------------------------------
-
-async function searchImages() {
-
-    // Get the search word
-    const query = searchInput.value.trim();
-
-
-    // ------------------------------
-    // EMPTY SEARCH
-    // ------------------------------
-
-    if (query === "") {
-
-        status.textContent = "Please enter something to search.";
-
-        resultsContainer.innerHTML = "";
-
+    // Ignore empty searches
+    if (!query) {
         return;
     }
 
+    // Clear old results
+    results.innerHTML = "";
 
-    // ------------------------------
-    // LOADING STATE
-    // ------------------------------
-
-    status.innerHTML = `
-        <span class="spinner"></span>
-        Searching...
-    `;
-
-    resultsContainer.innerHTML = "";
-
-    searchButton.disabled = true;
-
-
-    // ------------------------------
-    // API URL
-    // ------------------------------
-
+    // Wikimedia Commons API URL
     const url =
-        `https://commons.wikimedia.org/w/api.php` +
-        `?action=query` +
-        `&generator=search` +
-        `&gsrsearch=${encodeURIComponent(query)}` +
-        `&gsrnamespace=6` +
-        `&gsrlimit=20` +
-        `&prop=imageinfo` +
-        `&iiprop=url|extmetadata` +
-        `&iiurlwidth=400` +
-        `&format=json` +
-        `&origin=*`;
-
-
-    // ------------------------------
-    // TRY API REQUEST
-    // ------------------------------
+        "https://commons.wikimedia.org/w/api.php" +
+        "?action=query" +
+        "&generator=search" +
+        "&gsrsearch=" + encodeURIComponent(query) +
+        "&gsrnamespace=6" +
+        "&gsrlimit=12" +
+        "&prop=imageinfo" +
+        "&iiprop=url" +
+        "&iiurlwidth=300" +
+        "&format=json" +
+        "&origin=*";
 
     try {
-
+        // Fetch data from API
         const response = await fetch(url);
 
-
-        // ------------------------------
-        // ERROR CHECK
-        // ------------------------------
-
+        // Check if request was successful
         if (!response.ok) {
-            throw new Error("Request failed");
+            throw new Error("Request failed: " + response.status);
         }
 
-
-        // Convert response to JSON
+        // Convert response into JavaScript object
         const data = await response.json();
 
-
-        // ------------------------------
-        // GET RESULTS
-        // ------------------------------
-
-        const pages = data.query
+        // Get the pages/results
+        const items = data.query
             ? Object.values(data.query.pages)
             : [];
 
+        // Enhancement: show result count
+        const count = document.createElement("p");
+        count.textContent = `Showing ${items.length} results for "${query}"`;
+        results.appendChild(count);
 
-        // ------------------------------
-        // EMPTY STATE
-        // ------------------------------
-
-        if (pages.length === 0) {
-
-            status.textContent =
-                "No results found. Try another search.";
-
-            resultsContainer.innerHTML = "";
-
-            return;
-        }
-
-
-        // ------------------------------
-        // RESULT COUNT / POLISH
-        // ------------------------------
-
-        status.textContent =
-            `Showing ${pages.length} results for "${query}".`;
-
-
-        // ------------------------------
-        // DISPLAY RESULTS
-        // ------------------------------
-
-        pages.forEach(page => {
-
-            // Make sure image information exists
-            if (
-                !page.imageinfo ||
-                !page.imageinfo[0]
-            ) {
-                return;
-            }
-
-
-            const imageInfo = page.imageinfo[0];
-
-
+        // Render every result
+        items.forEach((item) => {
             // Create card
             const card = document.createElement("article");
-
             card.className = "card";
 
-
-            // Get image URL
-            const imageUrl =
-                imageInfo.thumburl || imageInfo.url;
-
+            // Create image
+            const img = document.createElement("img");
+            img.src = item.imageinfo[0].thumburl;
+            img.alt = item.title;
 
             // Create title
-            const title =
-                page.title
-                    .replace("File:", "")
-                    .replace(/_/g, " ");
+            const caption = document.createElement("p");
+            caption.textContent = item.title;
 
+            // Add image and title to card
+            card.appendChild(img);
+            card.appendChild(caption);
 
-            // Create card HTML
-            card.innerHTML = `
-                <img
-                    src="${imageUrl}"
-                    alt="${title}"
-                    loading="lazy"
-                >
-
-                <div class="card-content">
-
-                    <h3>${title}</h3>
-
-                    <a
-                        href="https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title)}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        View on Wikimedia Commons →
-                    </a>
-
-                </div>
-            `;
-
-
-            // Add card to page
-            resultsContainer.appendChild(card);
-
+            // Add card to results grid
+            results.appendChild(card);
         });
 
+    } catch (error) {
+        console.error("Error:", error);
     }
-
-
-    // ------------------------------
-    // ERROR STATE
-    // ------------------------------
-
-    catch (error) {
-
-        console.error(error);
-
-        status.textContent =
-            "Something went wrong. Please try again.";
-
-        resultsContainer.innerHTML = "";
-
-    }
-
-
-    // Enable button again
-    searchButton.disabled = false;
-}
-
-
-// ------------------------------
-// BUTTON CLICK
-// ------------------------------
-
-searchButton.addEventListener(
-    "click",
-    searchImages
-);
-
-
-// ------------------------------
-// ENTER KEY
-// ------------------------------
-
-searchInput.addEventListener(
-    "keydown",
-    function(event) {
-
-        if (event.key === "Enter") {
-            searchImages();
-        }
-
-    }
-);
+});
